@@ -511,7 +511,7 @@ function setupMainObserver() {
         console.log("Relevant DOM changes detected, updating elements...");
         processExistingElements();
       }
-    }, 1000);
+    }, 300);
   });
 
   // 开始观察整个文档
