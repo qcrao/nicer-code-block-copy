@@ -1,77 +1,42 @@
-# Last Year Today
+# Nicer Code Block Copy for Roam Research
 
-Last Year Today is a Roam Research extension that automatically shows you what you wrote on the same day in previous years. It helps you reflect on your past thoughts, track your progress, and rediscover valuable insights from your journal entries.
-
-![historical-pages](https://github.com/qcrao/last-year-today/blob/main/assets/historical-pages.png?raw=true)
+A Roam Research plugin that adds enhanced copy functionality to both inline code snippets and code blocks.
 
 ## Features
 
-1. **Automatic Daily Updates**
-
-   - Automatically opens your historical pages at a configurable time each day
-   - Displays entries from previous years in the right sidebar
-   - Customizable number of years to look back (1-10 years)
-
-2. **Visual Distinction**
-
-   - Historical pages are visually distinct with custom styling
-   - Beautiful borders and hourglass icons for easy identification
-   - Clean and intuitive interface
-
-3. **Flexible Controls**
-   - Command palette integration for manual control
-   - Open and close historical pages on demand
-   - Configurable settings through the Roam Research settings panel
+- Adds copy buttons to code blocks in Roam Research
+- For inline code, buttons appear only when you hover over the code (reduced visual clutter)
+- Shows visual feedback when code is copied (changes to a checkmark)
+- Clean, minimal interface that doesn't distract from your notes
 
 ## Installation
 
-1. In Roam Research, go to Settings > Roam Depot > Community extensions
-2. Search for "Last Year Today"
+1. Go to Roam Research's "Settings" > "Roam Depot"
+2. Find "Nicer Code Block Copy" in the list of available plugins
 3. Click "Install"
-
-## Configuration
-
-After installation, configure the extension in the Roam Research settings panel:
-
-1. **Years Back**: Choose how many years to look back (1-10 years)
-
-   - Default: 1 year
-   - Maximum: 10 years
-
-2. **Hour to Open Last Year Today Page**: Set when the historical pages should automatically open
-   - Default: 9 AM
-   - Range: 0-23 (24-hour format)
-
-![settings](https://github.com/qcrao/last-year-today/blob/main/assets/settings.png?raw=true)
 
 ## Usage
 
-### Automatic Updates
+- For code blocks: Click the copy button in the code block's toolbar
+- For inline code: Hover over any inline code to see the copy button appear, then click to copy
 
-The extension will automatically open your historical pages in the right sidebar at your configured time each day. Each historical page will be displayed in chronological order, from oldest to newest.
+## Settings
 
-### Manual Controls
+- **Enable copy button on inline code blocks**: Toggle this setting to show/hide copy buttons for inline code
 
-You can also control the extension manually through the command palette (Cmd/Ctrl + P):
+## Development
 
-1. **Open Last Year Today**
+```bash
+# Install dependencies
+npm install
 
-   - Opens historical pages in the right sidebar
-   - Shows pages from previous years for the current date
+# Build for production
+npm run build
 
-2. **Close Last Year Today**
-   - Closes all historical page windows
-   - Cleans up the sidebar
+# Development mode with auto-rebuilding
+npm run dev
+```
 
-![command-palette](https://github.com/qcrao/last-year-today/blob/main/assets/command-palette.png?raw=true)
+## License
 
-### Visual Indicators
-
-Historical pages are marked with:
-
-- Distinctive borders
-- Hourglass icon (⏳)
-- Highlighted date headers
-- Subtle shadows for depth
-
-![historical-page](https://github.com/qcrao/last-year-today/blob/main/assets/historical-page.png?raw=true)
+MIT

@@ -1,180 +1,296 @@
 // src/index.tsx
-import { HistoricalPagesService } from "./services/historicalPagesService";
-import { RoamService } from "./services/roamService";
-import { DateUtils } from "./utils/dateUtils";
-import {
-  loadInitialSettings,
-  initPanelConfig,
-  yearsBack,
-  dailyUpdateHour,
-} from "./settings";
-import { loadRoamExtensionCommands } from "./commands";
+import createObserver from "roamjs-components/dom/createObserver";
 
-let cleanupObserver: (() => void) | null = null;
-let updateTimer: NodeJS.Timer | null = null;
+// Define Timer type without relying on NodeJS namespace
+type Timer = ReturnType<typeof setTimeout>;
 
-const openHistoricalPages = async (today: string) => {
-  const historicalPages = await HistoricalPagesService.getHistoricalPages(
-    today,
-    yearsBack
-  );
-
-  if (historicalPages.length > 0) {
-    // Open right sidebar
-    await (window as any).roamAlphaAPI.ui.rightSidebar.open();
-
-    // Reverse historical pages so they are in order from oldest to newest
-    historicalPages.reverse();
-
-    // Open windows for each historical page
-    for (const page of historicalPages) {
-      const formattedDate = DateUtils.formatRoamDate(page.date);
-      await (window as any).roamAlphaAPI.ui.rightSidebar.addWindow({
-        window: {
-          type: "outline",
-          "block-uid": page.uid,
-          title: formattedDate,
+const config = {
+  tabTitle: "Nicer Code Block Copy",
+  settings: [
+    {
+      id: "enable-inline-code-copy-button",
+      name: "Enable copy button on inline code blocks",
+      description:
+        "If enabled, a copy button will appear on inline code blocks when hovering",
+      default: true,
+      action: {
+        type: "switch",
+        onChange: (evt: any) => {
+          inlineCopyEnabled = evt.target.checked;
+          onunload();
+          createObservers();
         },
-      });
-    }
-
-    // Mark historical windows with custom styles and store cleanup function
-    cleanupObserver = RoamService.markHistoricalWindows();
-    console.log("Historical pages opened successfully!");
-  } else {
-    console.log("No historical pages found");
-  }
+      },
+    },
+  ],
 };
 
-const closeHistoricalPages = async (today: string) => {
-  const historicalPages = await HistoricalPagesService.getHistoricalPages(
-    today,
-    yearsBack
-  );
+const runners = {
+  menuItems: [] as any[],
+  observers: [] as any[],
+};
 
-  // Check if rightSidebar API exists before using it
-  const roamAPI = window as any;
-  if (!roamAPI?.roamAlphaAPI?.ui?.rightSidebar) {
-    console.error("Right sidebar API not available");
-    return;
-  }
+let inlineCopyEnabled = true;
 
-  // Close windows for each historical page
-  for (const page of historicalPages) {
+// Add CSS styles for hover effects
+const injectStyles = () => {
+  const styleId = "nicer-code-block-copy-styles";
+  if (document.getElementById(styleId)) return;
+
+  const styleEl = document.createElement("style");
+  styleEl.id = styleId;
+  styleEl.innerHTML = `
+    .inline-code-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .inline-code-wrapper .copy-code-button {
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      position: absolute;
+      top: -18px;
+      right: 0;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 3px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      padding: 2px;
+      margin: 0;
+    }
+    
+    .inline-code-wrapper:hover .copy-code-button {
+      visibility: visible;
+      opacity: 1;
+    }
+    
+    .rm-code-block .copy-code-button {
+      margin-right: 5px;
+    }
+    
+    .copy-code-button .copy-icon {
+      height: 16px;
+      width: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  `;
+  document.head.appendChild(styleEl);
+};
+
+const removeStyles = () => {
+  const styleEl = document.getElementById("nicer-code-block-copy-styles");
+  if (styleEl) styleEl.remove();
+};
+
+async function copyCode(e: Event, blockUID: string) {
+  let eid = `[:block/uid "${blockUID}"]`;
+
+  let codeBlock = (window as any).roamAlphaAPI.data.pull(
+    "[:block/string]",
+    eid
+  )[":block/string"];
+
+  // Modified regex to handle hyphens and other special characters in language names
+  const codeBlockRegex = /```([a-zA-Z0-9+#\-_ ]*)([\s\S]*?)```/;
+
+  // Find the match in the markdown string
+  const match = codeBlock.match(codeBlockRegex);
+
+  // If a match is found, copy the code
+  if (match) {
+    const code = match[2].trim();
+
     try {
-      await roamAPI.roamAlphaAPI.ui.rightSidebar.removeWindow({
-        window: {
-          type: "outline",
-          "block-uid": page.uid,
-        },
-      });
-    } catch (error) {
-      console.error(`Failed to close window for page ${page.uid}:`, error);
+      await navigator.clipboard.writeText(code);
+      // Add visual feedback
+      const button = (e.target as HTMLElement).closest(".copy-code-button");
+      if (button) {
+        const icon = button.querySelector(".copy-icon");
+        if (icon) {
+          icon.innerHTML = "✓"; // Success checkmark
+          setTimeout(() => {
+            icon.innerHTML = "📋"; // Back to clipboard
+          }, 1000);
+        }
+      }
+    } catch (err) {
+      console.error("Could not copy text: ", err);
     }
   }
-};
+}
 
-const scheduleNextUpdate = () => {
-  const now = new Date();
-  const nextUpdate = new Date(now);
+async function copyInlineCode(e: Event) {
+  const button = (e.target as HTMLElement).closest(".copy-code-button");
+  const wrapper = button?.closest(".inline-code-wrapper");
+  const codeElement = wrapper?.querySelector("code");
 
-  // If current hour is before update hour, schedule for today
-  // Otherwise schedule for tomorrow
-  if (now.getHours() < dailyUpdateHour) {
-    nextUpdate.setHours(dailyUpdateHour, 0, 3, 0); // set seconds to 3 to avoid timezone issues
-  } else {
-    nextUpdate.setDate(nextUpdate.getDate() + 1);
-    nextUpdate.setHours(dailyUpdateHour, 0, 3, 0); // set seconds to 3 to avoid timezone issues
-  }
+  if (!codeElement) return;
 
-  const timeUntilUpdate = nextUpdate.getTime() - now.getTime();
-  console.log(
-    `Next update scheduled in ${Math.round(
-      timeUntilUpdate / 1000 / 60
-    )} minutes`
-  );
-
-  return setTimeout(async () => {
-    const today = DateUtils.formatRoamDate(new Date());
-    await openHistoricalPages(today);
-    // Schedule next update
-    updateTimer = scheduleNextUpdate();
-  }, timeUntilUpdate);
-};
-
-const onload = async ({ extensionAPI }: { extensionAPI: any }) => {
-  console.log("Last Year Today plugin loading...");
+  const code = codeElement.innerText;
 
   try {
-    // Load settings
-    console.log("loadInitialSettings...");
-    loadInitialSettings(extensionAPI);
-    console.log("yearsBack", yearsBack);
-    console.log("dailyUpdateHour", dailyUpdateHour);
-
-    // Initialize panel config
-    await extensionAPI.settings.panel.create(initPanelConfig(extensionAPI));
-
-    // Listen for settings changes
-    window.addEventListener(
-      "lastYearToday:hour-to-open-last-year-today-page:settingsChanged",
-      () => {
-        if (updateTimer) {
-          clearTimeout(updateTimer);
-        }
-        updateTimer = scheduleNextUpdate();
-      }
-    );
-
-    await loadRoamExtensionCommands(
-      extensionAPI,
-      openHistoricalPages,
-      closeHistoricalPages
-    );
-
-    // Initialize custom styles
-    RoamService.injectCustomStyles();
-
-    // Get current date in Roam format
-    const now = new Date();
-    const today = DateUtils.formatRoamDate(now);
-
-    await openHistoricalPages(today);
-
-    // Schedule next update
-    updateTimer = scheduleNextUpdate();
-  } catch (error) {
-    console.error("Error loading Last Year Today plugin:", error);
+    await navigator.clipboard.writeText(code);
+    // Add visual feedback
+    const icon = button?.querySelector(".copy-icon");
+    if (icon) {
+      icon.innerHTML = "✓"; // Success checkmark
+      setTimeout(() => {
+        icon.innerHTML = "📋"; // Back to clipboard
+      }, 1000);
+    }
+  } catch (err) {
+    console.error("Could not copy text: ", err);
   }
+}
+
+const createCopyButton = (blockUID: string) => {
+  const button = document.createElement("span");
+  button.className =
+    "bp3-button bp3-minimal bp3-small copy-code-button dont-focus-block";
+  button.tabIndex = 0;
+
+  const icon = document.createElement("span");
+  icon.className = "copy-icon";
+  icon.innerHTML = "📋"; // Using emoji icon
+  icon.id = blockUID;
+  button.appendChild(icon);
+
+  return button;
 };
 
-const onunload = () => {
-  // Remove settings change listener
-  window.removeEventListener(
-    "lastYearToday:hour-to-open-last-year-today-page:settingsChanged",
-    () => {}
+function createCodeBlockButton(blockUID: string, codeBlock: HTMLElement) {
+  // Check if a button already exists
+  if (codeBlock.querySelector(".copy-code-button")) return;
+
+  const copyButton = createCopyButton(blockUID);
+  const settingsBar = codeBlock.querySelector(
+    ".rm-code-block__settings-bar"
+  )?.lastElementChild;
+
+  if (!settingsBar) return;
+
+  copyButton.addEventListener("click", (e) => {
+    copyCode(e, blockUID);
+  });
+
+  settingsBar.insertAdjacentElement("beforebegin", copyButton);
+}
+
+function createInlineCodeButton(blockUID: string, codeElement: HTMLElement) {
+  // Skip if already wrapped
+  if (codeElement.parentElement?.classList.contains("inline-code-wrapper"))
+    return;
+
+  // Create wrapper to hold the code and button
+  const wrapper = document.createElement("span");
+  wrapper.className = "inline-code-wrapper";
+
+  // Insert wrapper before code element
+  codeElement.parentNode?.insertBefore(wrapper, codeElement);
+
+  // Move code element into wrapper
+  wrapper.appendChild(codeElement);
+
+  // Create and add button
+  const copyButton = createCopyButton(blockUID);
+  copyButton.addEventListener("click", copyInlineCode);
+  wrapper.appendChild(copyButton);
+}
+
+function removeObservers() {
+  // Loop through observers and disconnect
+  for (const observer of runners.observers) {
+    observer.disconnect();
+  }
+  runners.observers = [];
+}
+
+function createObservers() {
+  // Find and enhance code blocks
+  const codeBlockObserver = createObserver(() => {
+    const codeBlocks = document.querySelectorAll(".rm-code-block");
+
+    for (const codeBlock of codeBlocks) {
+      const roamBlock = codeBlock.closest(".roam-block");
+      if (!roamBlock) continue;
+
+      const blockUID = roamBlock.id.split("-").pop();
+      if (!blockUID) continue;
+
+      createCodeBlockButton(blockUID, codeBlock as HTMLElement);
+    }
+  });
+
+  runners.observers.push(codeBlockObserver);
+
+  if (inlineCopyEnabled) {
+    const inlineCodeBlockObserver = createObserver(() => {
+      document.querySelectorAll("code").forEach((codeElement) => {
+        // Skip code elements that are within code blocks
+        if (codeElement.closest(".rm-code-block")) return;
+
+        const blockParent = codeElement.closest(".roam-block");
+        if (!blockParent) return;
+
+        const blockUID = blockParent.id.split("-").pop();
+        if (!blockUID) return;
+
+        createInlineCodeButton(blockUID, codeElement as HTMLElement);
+      });
+    });
+
+    runners.observers.push(inlineCodeBlockObserver);
+  }
+}
+
+function setSettingDefault(
+  extensionAPI: any,
+  settingId: string,
+  settingDefault: boolean
+): boolean {
+  const storedSetting = extensionAPI.settings.get(settingId);
+  if (storedSetting === null) {
+    extensionAPI.settings.set(settingId, settingDefault);
+    return settingDefault;
+  }
+  return storedSetting;
+}
+
+function onload({ extensionAPI }: { extensionAPI: any }) {
+  console.log("Loading nicer code block copy plugin");
+
+  inlineCopyEnabled = setSettingDefault(
+    extensionAPI,
+    "enable-inline-code-copy-button",
+    true
   );
 
-  // Clean up custom styles
-  const styleElement = document.getElementById("last-year-today-styles");
-  if (styleElement) {
-    styleElement.remove();
-  }
+  extensionAPI.settings.panel.create(config);
 
-  // Clean up observer
-  if (cleanupObserver) {
-    cleanupObserver();
-    cleanupObserver = null;
-  }
+  injectStyles();
+  createObservers();
+}
 
-  // Clear update timer
-  if (updateTimer) {
-    clearTimeout(updateTimer);
-    updateTimer = null;
-  }
+function onunload() {
+  console.log("Unloading nicer code block copy plugin");
 
-  console.log("Last Year Today plugin unloaded!");
-};
+  // Remove all copy buttons and wrappers
+  document.querySelectorAll(".copy-code-button").forEach((btn) => btn.remove());
+
+  // Unwrap inline code elements
+  document.querySelectorAll(".inline-code-wrapper").forEach((wrapper) => {
+    const code = wrapper.querySelector("code");
+    if (code) {
+      wrapper.parentNode?.insertBefore(code, wrapper);
+      wrapper.remove();
+    }
+  });
+
+  removeObservers();
+  removeStyles();
+}
 
 export default {
   onload,
