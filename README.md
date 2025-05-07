@@ -1,5 +1,7 @@
 # Nicer Code Block Copy for Roam Research
 
+![Nicer Code Block Copy](https://github.com/qcrao/nicer-code-block-copy/blob/main/assets/code-block-copy.gif?raw=true)
+
 > **Inspiration**: This project is inspired by [roam-depot-copy-code-block](https://github.com/8bitgentleman/roam-depot-copy-code-block), with numerous improvements to interaction experience and functionality.
 
 A Roam Research extension that adds enhanced copy functionality to both inline code snippets, code blocks, and highlighted text.
