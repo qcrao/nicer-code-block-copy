@@ -475,7 +475,7 @@ function setupMainObserver() {
         console.log("Relevant DOM changes detected, updating elements...");
         processExistingElements();
       }
-    }, 300); // 300ms防抖延迟
+    }, 1000);
   });
 
   // 开始观察整个文档

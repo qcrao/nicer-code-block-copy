@@ -1,6 +1,27 @@
 # Nicer Code Block Copy for Roam Research
 
-A Roam Research plugin that adds enhanced copy functionality to both inline code snippets, code blocks, and highlighted text.
+> **Inspiration**: This project is inspired by [roam-depot-copy-code-block](https://github.com/8bitgentleman/roam-depot-copy-code-block), with numerous improvements to interaction experience and functionality.
+
+A Roam Research extension that adds enhanced copy functionality to both inline code snippets, code blocks, and highlighted text.
+
+## Improvements & Enhancements
+
+Compared to the original project, this extension offers:
+
+- **More Elegant Interaction Design**:
+
+  - Copy buttons for inline code and highlighted text only appear on hover, reducing visual clutter
+  - Dynamic feedback when copying is successful (changes to a checkmark icon)
+  - More aesthetically pleasing icons
+
+- **Enhanced Functionality**:
+
+  - Added support for copying highlighted text
+  - Smarter DOM change handling to ensure copy functionality works correctly when page content changes
+  - More efficient performance optimization (debounce processing)
+
+- **Better Customization**:
+  - Separate controls for inline code and highlight text copy functionality
 
 ## Features
 
@@ -26,19 +47,8 @@ A Roam Research plugin that adds enhanced copy functionality to both inline code
 - **Enable copy button on inline code blocks**: Toggle this setting to show/hide copy buttons for inline code
 - **Enable copy button on highlighted text**: Toggle this setting to show/hide copy buttons for highlighted text
 
-## Development
+## Acknowledgements
 
-```bash
-# Install dependencies
-npm install
+Thanks to [8bitgentleman](https://github.com/8bitgentleman) for the original project:
 
-# Build for production
-npm run build
-
-# Development mode with auto-rebuilding
-npm run dev
-```
-
-## License
-
-MIT
+https://github.com/8bitgentleman/roam-depot-copy-code-block
