@@ -1,5 +1,6 @@
 // src/index.tsx
-import createObserver from "roamjs-components/dom/createObserver";
+// 不再需要createObserver，移除导入
+// type Timer 定义和其他变量保持不变
 
 // Define Timer type without relying on NodeJS namespace
 type Timer = ReturnType<typeof setTimeout>;
@@ -43,11 +44,7 @@ const config = {
   ],
 };
 
-const runners = {
-  menuItems: [] as any[],
-  observers: [] as any[],
-};
-
+// 不再需要runners对象，完全移除
 let inlineCopyEnabled = true;
 let highlightCopyEnabled = true;
 let extensionAPIRef: any = null;
@@ -74,7 +71,6 @@ const reinitializePlugin = () => {
  * 清理插件，移除所有观察者和DOM元素
  */
 const cleanupPlugin = () => {
-  removeObservers();
   cleanupExistingWrappers();
   removeStyles();
 
@@ -309,20 +305,6 @@ function createHighlightButton(
   const copyButton = createCopyButton(blockUID);
   copyButton.addEventListener("click", copyHighlightedText);
   wrapper.appendChild(copyButton);
-}
-
-function removeObservers() {
-  // Loop through observers and disconnect
-  try {
-    for (const observer of runners.observers) {
-      if (observer && typeof observer.disconnect === "function") {
-        observer.disconnect();
-      }
-    }
-    runners.observers = [];
-  } catch (error) {
-    console.error("Error removing observers:", error);
-  }
 }
 
 function cleanupExistingWrappers() {
