@@ -52,7 +52,7 @@ let highlightCopyEnabled = true;
 const reinitializePlugin = () => {
   try {
     // 清理当前运行的观察者和元素
-    cleanupPlugin();
+    cleanupExtension();
 
     // 重新初始化
     injectStyles();
@@ -66,7 +66,7 @@ const reinitializePlugin = () => {
 /**
  * 清理插件，移除所有观察者和DOM元素
  */
-const cleanupPlugin = () => {
+const cleanupExtension = () => {
   cleanupExistingWrappers();
   removeStyles();
 
@@ -570,15 +570,15 @@ function onload({ extensionAPI }: { extensionAPI: any }) {
     // 立即处理当前页面上的元素
     processExistingElements();
 
-    console.log("Nicer code block copy plugin successfully loaded");
+    console.log("Nicer code block copy extension successfully loaded");
 
     // 返回true表示加载成功
     return true;
   } catch (error) {
-    console.error("Error loading plugin:", error);
+    console.error("Error loading extension:", error);
     // 尝试清理
     try {
-      cleanupPlugin();
+      cleanupExtension();
     } catch (e) {
       console.error("Error cleaning up after failed load:", e);
     }
@@ -587,18 +587,18 @@ function onload({ extensionAPI }: { extensionAPI: any }) {
 }
 
 function onunload() {
-  console.log("Unloading nicer code block copy plugin");
+  console.log("Unloading nicer code block copy extension");
 
   try {
     // 清理所有内容
-    cleanupPlugin();
+    cleanupExtension();
 
-    console.log("Nicer code block copy plugin successfully unloaded");
+    console.log("Nicer code block copy extension successfully unloaded");
 
     // 返回true表示卸载成功
     return true;
   } catch (error) {
-    console.error("Error unloading plugin:", error);
+    console.error("Error unloading extension:", error);
     return false;
   }
 }
