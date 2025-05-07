@@ -487,24 +487,48 @@ function setupMainObserver() {
     if (debounceTimer) clearTimeout(debounceTimer);
 
     debounceTimer = setTimeout(() => {
-      // 检查是否有相关变化
-      const hasRelevantChanges = mutations.some((mutation) => {
-        return Array.from(mutation.addedNodes).some((node) => {
-          if (node.nodeType !== Node.ELEMENT_NODE) return false;
+      const checkNodeRelevance = (node: Node): boolean => {
+        if (node.nodeType !== Node.ELEMENT_NODE) return false;
+        const el = node as Element;
 
-          const element = node as Element;
-          return (
-            // 检查是否是代码块
-            element.classList?.contains("rm-code-block") ||
-            element.querySelector?.(".rm-code-block") ||
-            // 检查是否是内联代码
-            element.tagName === "CODE" ||
-            element.querySelector?.("code") ||
-            // 检查是否是高亮文本
-            element.classList?.contains("rm-highlight") ||
-            element.querySelector?.(".rm-highlight")
-          );
-        });
+        // 1. 检查节点本身是否是目标元素
+        if (el.matches && el.matches(".rm-code-block, code, .rm-highlight"))
+          return true;
+        // 2. 检查节点是否包含目标元素
+        if (
+          el.querySelector &&
+          el.querySelector(".rm-code-block, code, .rm-highlight")
+        )
+          return true;
+        // 3. 检查节点是否是插件创建的包装器或按钮
+        if (
+          el.matches &&
+          el.matches(
+            ".inline-code-wrapper, .highlight-wrapper, .copy-code-button"
+          )
+        )
+          return true;
+        // 4. 检查节点是否在目标元素或包装器内
+        if (
+          el.closest &&
+          el.closest(".rm-code-block, .inline-code-wrapper, .highlight-wrapper")
+        )
+          return true;
+
+        return false;
+      };
+
+      const hasRelevantChanges = mutations.some((mutation) => {
+        // 检查mutation的目标节点
+        if (checkNodeRelevance(mutation.target)) return true;
+        // 检查所有添加的节点
+        if (Array.from(mutation.addedNodes).some(checkNodeRelevance))
+          return true;
+        // 检查所有移除的节点（对于检测按钮/包装器的移除很重要）
+        if (Array.from(mutation.removedNodes).some(checkNodeRelevance))
+          return true;
+
+        return false;
       });
 
       if (hasRelevantChanges) {
