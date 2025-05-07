@@ -22,6 +22,21 @@ const config = {
         },
       },
     },
+    {
+      id: "enable-highlight-copy-button",
+      name: "Enable copy button on highlighted text",
+      description:
+        "If enabled, a copy button will appear on highlighted text when hovering",
+      default: true,
+      action: {
+        type: "switch",
+        onChange: (evt: any) => {
+          highlightCopyEnabled = evt.target.checked;
+          onunload();
+          createObservers();
+        },
+      },
+    },
   ],
 };
 
@@ -31,6 +46,7 @@ const runners = {
 };
 
 let inlineCopyEnabled = true;
+let highlightCopyEnabled = true;
 
 // Add CSS styles for hover effects
 const injectStyles = () => {
@@ -40,12 +56,14 @@ const injectStyles = () => {
   const styleEl = document.createElement("style");
   styleEl.id = styleId;
   styleEl.innerHTML = `
-    .inline-code-wrapper {
+    .inline-code-wrapper,
+    .highlight-wrapper {
       position: relative;
       display: inline-block;
     }
     
-    .inline-code-wrapper .copy-code-button {
+    .inline-code-wrapper .copy-code-button,
+    .highlight-wrapper .copy-code-button {
       visibility: hidden;
       opacity: 0;
       transition: opacity 0.2s ease;
@@ -59,7 +77,8 @@ const injectStyles = () => {
       margin: 0;
     }
     
-    .inline-code-wrapper:hover .copy-code-button {
+    .inline-code-wrapper:hover .copy-code-button,
+    .highlight-wrapper:hover .copy-code-button {
       visibility: visible;
       opacity: 1;
     }
@@ -145,6 +164,30 @@ async function copyInlineCode(e: Event) {
   }
 }
 
+async function copyHighlightedText(e: Event) {
+  const button = (e.target as HTMLElement).closest(".copy-code-button");
+  const wrapper = button?.closest(".highlight-wrapper");
+  const highlightElement = wrapper?.querySelector(".rm-highlight");
+
+  if (!highlightElement) return;
+
+  const text = highlightElement.textContent || "";
+
+  try {
+    await navigator.clipboard.writeText(text);
+    // Add visual feedback
+    const icon = button?.querySelector(".copy-icon");
+    if (icon) {
+      icon.innerHTML = "✓"; // Success checkmark
+      setTimeout(() => {
+        icon.innerHTML = "📋"; // Back to clipboard
+      }, 1000);
+    }
+  } catch (err) {
+    console.error("Could not copy text: ", err);
+  }
+}
+
 const createCopyButton = (blockUID: string) => {
   const button = document.createElement("span");
   button.className =
@@ -199,6 +242,30 @@ function createInlineCodeButton(blockUID: string, codeElement: HTMLElement) {
   wrapper.appendChild(copyButton);
 }
 
+function createHighlightButton(
+  blockUID: string,
+  highlightElement: HTMLElement
+) {
+  // Skip if already wrapped
+  if (highlightElement.parentElement?.classList.contains("highlight-wrapper"))
+    return;
+
+  // Create wrapper to hold the highlight and button
+  const wrapper = document.createElement("span");
+  wrapper.className = "highlight-wrapper";
+
+  // Insert wrapper before highlight element
+  highlightElement.parentNode?.insertBefore(wrapper, highlightElement);
+
+  // Move highlight element into wrapper
+  wrapper.appendChild(highlightElement);
+
+  // Create and add button
+  const copyButton = createCopyButton(blockUID);
+  copyButton.addEventListener("click", copyHighlightedText);
+  wrapper.appendChild(copyButton);
+}
+
 function removeObservers() {
   // Loop through observers and disconnect
   for (const observer of runners.observers) {
@@ -243,6 +310,30 @@ function createObservers() {
 
     runners.observers.push(inlineCodeBlockObserver);
   }
+
+  if (highlightCopyEnabled) {
+    const highlightObserver = createObserver(() => {
+      document.querySelectorAll(".rm-highlight").forEach((highlightElement) => {
+        // Skip highlights that are already processed
+        if (
+          highlightElement.parentElement?.classList.contains(
+            "highlight-wrapper"
+          )
+        )
+          return;
+
+        const blockParent = highlightElement.closest(".roam-block");
+        if (!blockParent) return;
+
+        const blockUID = blockParent.id.split("-").pop();
+        if (!blockUID) return;
+
+        createHighlightButton(blockUID, highlightElement as HTMLElement);
+      });
+    });
+
+    runners.observers.push(highlightObserver);
+  }
 }
 
 function setSettingDefault(
@@ -267,6 +358,12 @@ function onload({ extensionAPI }: { extensionAPI: any }) {
     true
   );
 
+  highlightCopyEnabled = setSettingDefault(
+    extensionAPI,
+    "enable-highlight-copy-button",
+    true
+  );
+
   extensionAPI.settings.panel.create(config);
 
   injectStyles();
@@ -284,6 +381,15 @@ function onunload() {
     const code = wrapper.querySelector("code");
     if (code) {
       wrapper.parentNode?.insertBefore(code, wrapper);
+      wrapper.remove();
+    }
+  });
+
+  // Unwrap highlight elements
+  document.querySelectorAll(".highlight-wrapper").forEach((wrapper) => {
+    const highlight = wrapper.querySelector(".rm-highlight");
+    if (highlight) {
+      wrapper.parentNode?.insertBefore(highlight, wrapper);
       wrapper.remove();
     }
   });

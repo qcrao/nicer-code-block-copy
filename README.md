@@ -1,12 +1,12 @@
 # Nicer Code Block Copy for Roam Research
 
-A Roam Research plugin that adds enhanced copy functionality to both inline code snippets and code blocks.
+A Roam Research plugin that adds enhanced copy functionality to both inline code snippets, code blocks, and highlighted text.
 
 ## Features
 
 - Adds copy buttons to code blocks in Roam Research
-- For inline code, buttons appear only when you hover over the code (reduced visual clutter)
-- Shows visual feedback when code is copied (changes to a checkmark)
+- For inline code and highlighted text, buttons appear only when you hover over the text (reduced visual clutter)
+- Shows visual feedback when content is copied (changes to a checkmark)
 - Clean, minimal interface that doesn't distract from your notes
 
 ## Installation
@@ -19,10 +19,12 @@ A Roam Research plugin that adds enhanced copy functionality to both inline code
 
 - For code blocks: Click the copy button in the code block's toolbar
 - For inline code: Hover over any inline code to see the copy button appear, then click to copy
+- For highlighted text: Hover over any highlighted text to see the copy button appear, then click to copy
 
 ## Settings
 
 - **Enable copy button on inline code blocks**: Toggle this setting to show/hide copy buttons for inline code
+- **Enable copy button on highlighted text**: Toggle this setting to show/hide copy buttons for highlighted text
 
 ## Development
 
