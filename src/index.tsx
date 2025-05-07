@@ -1,12 +1,9 @@
 // src/index.tsx
-// 不再需要createObserver，移除导入
-// type Timer 定义和其他变量保持不变
 
 // Define Timer type without relying on NodeJS namespace
 type Timer = ReturnType<typeof setTimeout>;
 
-// Plugin instance tracking
-let isPluginLoaded = false;
+// 主要观察者和防抖计时器
 let mainObserver: MutationObserver | null = null;
 let debounceTimer: Timer | null = null;
 
@@ -44,10 +41,9 @@ const config = {
   ],
 };
 
-// 不再需要runners对象，完全移除
+// 设置状态
 let inlineCopyEnabled = true;
 let highlightCopyEnabled = true;
-let extensionAPIRef: any = null;
 
 /**
  * 重新初始化插件
@@ -512,19 +508,6 @@ function setSettingDefault(
 function onload({ extensionAPI }: { extensionAPI: any }) {
   console.log("Loading nicer code block copy plugin");
 
-  // 避免重复加载
-  if (isPluginLoaded) {
-    console.log("Plugin already loaded, cleaning up before reinitializing");
-    try {
-      onunload();
-    } catch (e) {
-      console.error("Error unloading existing instance:", e);
-    }
-  }
-
-  // 保存extensionAPI的引用
-  extensionAPIRef = extensionAPI;
-
   try {
     // 加载设置
     inlineCopyEnabled = setSettingDefault(
@@ -551,8 +534,6 @@ function onload({ extensionAPI }: { extensionAPI: any }) {
     // 立即处理当前页面上的元素
     processExistingElements();
 
-    // 标记插件已加载
-    isPluginLoaded = true;
     console.log("Nicer code block copy plugin successfully loaded");
 
     // 返回true表示加载成功
@@ -565,25 +546,17 @@ function onload({ extensionAPI }: { extensionAPI: any }) {
     } catch (e) {
       console.error("Error cleaning up after failed load:", e);
     }
-    isPluginLoaded = false;
     return false;
   }
 }
 
 function onunload() {
-  if (!isPluginLoaded) {
-    console.log("Plugin not loaded, nothing to unload");
-    return true;
-  }
-
   console.log("Unloading nicer code block copy plugin");
 
   try {
     // 清理所有内容
     cleanupPlugin();
 
-    // 重置状态
-    isPluginLoaded = false;
     console.log("Nicer code block copy plugin successfully unloaded");
 
     // 返回true表示卸载成功
