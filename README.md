@@ -19,6 +19,7 @@ Compared to the original project, this extension offers:
   - Added support for copying highlighted text
   - Smarter DOM change handling to ensure copy functionality works correctly when page content changes
   - More efficient performance optimization (debounce processing)
+  - Fixed the bug in the original project where code blocks couldn't be copied
 
 - **Better Customization**:
   - Separate controls for inline code and highlight text copy functionality
