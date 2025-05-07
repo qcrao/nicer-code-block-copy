@@ -6,6 +6,8 @@ type Timer = ReturnType<typeof setTimeout>;
 
 // Plugin instance tracking
 let isPluginLoaded = false;
+let mainObserver: MutationObserver | null = null;
+let debounceTimer: Timer | null = null;
 
 const config = {
   tabTitle: "Nicer Code Block Copy",
@@ -61,7 +63,8 @@ const reinitializePlugin = () => {
 
     // 重新初始化
     injectStyles();
-    createObservers();
+    setupMainObserver();
+    processExistingElements(); // 立即处理当前页面上的元素
   } catch (error) {
     console.error("Error reinitializing plugin:", error);
   }
@@ -74,6 +77,18 @@ const cleanupPlugin = () => {
   removeObservers();
   cleanupExistingWrappers();
   removeStyles();
+
+  // 清理主MutationObserver
+  if (mainObserver) {
+    mainObserver.disconnect();
+    mainObserver = null;
+  }
+
+  // 清理防抖计时器
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
 };
 
 // Add CSS styles for hover effects
@@ -352,81 +367,146 @@ function cleanupExistingWrappers() {
   }
 }
 
-function createObservers() {
-  // First clean up any existing wrappers to avoid double-wrapping
-  cleanupExistingWrappers();
+/**
+ * 处理代码块
+ */
+function processCodeBlocks() {
+  try {
+    const codeBlocks = document.querySelectorAll(".rm-code-block");
+    for (const codeBlock of codeBlocks) {
+      const roamBlock = codeBlock.closest(".roam-block");
+      if (!roamBlock) continue;
+
+      const blockUID = roamBlock.id.split("-").pop();
+      if (!blockUID) continue;
+
+      createCodeBlockButton(blockUID, codeBlock as HTMLElement);
+    }
+  } catch (error) {
+    console.error("Error processing code blocks:", error);
+  }
+}
+
+/**
+ * 处理内联代码
+ */
+function processInlineCode() {
+  if (!inlineCopyEnabled) return;
 
   try {
-    // Find and enhance code blocks
-    const codeBlockObserver = createObserver(() => {
-      const codeBlocks = document.querySelectorAll(".rm-code-block");
+    document.querySelectorAll("code").forEach((codeElement) => {
+      // Skip code elements that are within code blocks
+      if (codeElement.closest(".rm-code-block")) return;
 
-      for (const codeBlock of codeBlocks) {
-        const roamBlock = codeBlock.closest(".roam-block");
-        if (!roamBlock) continue;
+      // Skip if already wrapped
+      if (codeElement.parentElement?.classList.contains("inline-code-wrapper"))
+        return;
 
-        const blockUID = roamBlock.id.split("-").pop();
-        if (!blockUID) continue;
+      const blockParent = codeElement.closest(".roam-block");
+      if (!blockParent) return;
 
-        createCodeBlockButton(blockUID, codeBlock as HTMLElement);
-      }
+      const blockUID = blockParent.id.split("-").pop();
+      if (!blockUID) return;
+
+      createInlineCodeButton(blockUID, codeElement as HTMLElement);
     });
+  } catch (error) {
+    console.error("Error processing inline code:", error);
+  }
+}
 
-    runners.observers.push(codeBlockObserver);
+/**
+ * 处理高亮文本
+ */
+function processHighlights() {
+  if (!highlightCopyEnabled) return;
 
-    if (inlineCopyEnabled) {
-      const inlineCodeBlockObserver = createObserver(() => {
-        document.querySelectorAll("code").forEach((codeElement) => {
-          // Skip code elements that are within code blocks
-          if (codeElement.closest(".rm-code-block")) return;
+  try {
+    document.querySelectorAll(".rm-highlight").forEach((highlightElement) => {
+      // Skip highlights that are already processed
+      if (
+        highlightElement.parentElement?.classList.contains("highlight-wrapper")
+      )
+        return;
 
-          // Skip if already wrapped
-          if (
-            codeElement.parentElement?.classList.contains("inline-code-wrapper")
-          )
-            return;
+      const blockParent = highlightElement.closest(".roam-block");
+      if (!blockParent) return;
 
-          const blockParent = codeElement.closest(".roam-block");
-          if (!blockParent) return;
+      const blockUID = blockParent.id.split("-").pop();
+      if (!blockUID) return;
 
-          const blockUID = blockParent.id.split("-").pop();
-          if (!blockUID) return;
+      createHighlightButton(blockUID, highlightElement as HTMLElement);
+    });
+  } catch (error) {
+    console.error("Error processing highlights:", error);
+  }
+}
 
-          createInlineCodeButton(blockUID, codeElement as HTMLElement);
+/**
+ * 处理当前页面上的所有元素
+ */
+function processExistingElements() {
+  processCodeBlocks();
+  processInlineCode();
+  processHighlights();
+}
+
+/**
+ * 设置主MutationObserver以监视DOM变化
+ */
+function setupMainObserver() {
+  // 确保先移除旧的observer
+  if (mainObserver) {
+    mainObserver.disconnect();
+    mainObserver = null;
+  }
+
+  // 初始化防抖计时器
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
+
+  // 创建新的MutationObserver
+  mainObserver = new MutationObserver((mutations) => {
+    // 使用防抖机制避免过于频繁的处理
+    if (debounceTimer) clearTimeout(debounceTimer);
+
+    debounceTimer = setTimeout(() => {
+      // 检查是否有相关变化
+      const hasRelevantChanges = mutations.some((mutation) => {
+        return Array.from(mutation.addedNodes).some((node) => {
+          if (node.nodeType !== Node.ELEMENT_NODE) return false;
+
+          const element = node as Element;
+          return (
+            // 检查是否是代码块
+            element.classList?.contains("rm-code-block") ||
+            element.querySelector?.(".rm-code-block") ||
+            // 检查是否是内联代码
+            element.tagName === "CODE" ||
+            element.querySelector?.("code") ||
+            // 检查是否是高亮文本
+            element.classList?.contains("rm-highlight") ||
+            element.querySelector?.(".rm-highlight")
+          );
         });
       });
 
-      runners.observers.push(inlineCodeBlockObserver);
-    }
+      if (hasRelevantChanges) {
+        console.log("Relevant DOM changes detected, updating elements...");
+        processExistingElements();
+      }
+    }, 300); // 300ms防抖延迟
+  });
 
-    if (highlightCopyEnabled) {
-      const highlightObserver = createObserver(() => {
-        document
-          .querySelectorAll(".rm-highlight")
-          .forEach((highlightElement) => {
-            // Skip highlights that are already processed
-            if (
-              highlightElement.parentElement?.classList.contains(
-                "highlight-wrapper"
-              )
-            )
-              return;
+  // 开始观察整个文档
+  mainObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
 
-            const blockParent = highlightElement.closest(".roam-block");
-            if (!blockParent) return;
-
-            const blockUID = blockParent.id.split("-").pop();
-            if (!blockUID) return;
-
-            createHighlightButton(blockUID, highlightElement as HTMLElement);
-          });
-      });
-
-      runners.observers.push(highlightObserver);
-    }
-  } catch (error) {
-    console.error("Error creating observers:", error);
-  }
+  console.log("Main observer setup complete");
 }
 
 function setSettingDefault(
@@ -480,9 +560,14 @@ function onload({ extensionAPI }: { extensionAPI: any }) {
     // 创建设置面板
     extensionAPI.settings.panel.create(config);
 
-    // 注入样式和创建观察者
+    // 注入样式
     injectStyles();
-    createObservers();
+
+    // 设置主MutationObserver
+    setupMainObserver();
+
+    // 立即处理当前页面上的元素
+    processExistingElements();
 
     // 标记插件已加载
     isPluginLoaded = true;
