@@ -355,7 +355,19 @@ function processCodeBlocks() {
       const roamBlock = codeBlock.closest(".roam-block");
       if (!roamBlock) continue;
 
-      const blockUID = roamBlock.id.split("-").pop();
+      // Extract blockUID from format like "block-input-eHYeNqsUJDS9EoR6iZFoz349nj13-body-outline-05-07-2025-wiBMVuO-N"
+      const blockId = roamBlock.id;
+      let blockUID = "";
+
+      // Look for a date pattern (MM-DD-YYYY) and extract the part after it
+      const dateMatch = blockId.match(/\d{2}-\d{2}-\d{4}-(.+)/);
+      if (dateMatch && dateMatch[1]) {
+        blockUID = dateMatch[1];
+      } else {
+        // Fallback to the original method
+        blockUID = blockId.split("-").pop() || "";
+      }
+
       if (!blockUID) continue;
 
       createCodeBlockButton(blockUID, codeBlock as HTMLElement);
@@ -383,7 +395,19 @@ function processInlineCode() {
       const blockParent = codeElement.closest(".roam-block");
       if (!blockParent) return;
 
-      const blockUID = blockParent.id.split("-").pop();
+      // Extract blockUID from ID
+      const blockId = blockParent.id;
+      let blockUID = "";
+
+      // Look for a date pattern (MM-DD-YYYY) and extract the part after it
+      const dateMatch = blockId.match(/\d{2}-\d{2}-\d{4}-(.+)/);
+      if (dateMatch && dateMatch[1]) {
+        blockUID = dateMatch[1];
+      } else {
+        // Fallback to the original method
+        blockUID = blockId.split("-").pop() || "";
+      }
+
       if (!blockUID) return;
 
       createInlineCodeButton(blockUID, codeElement as HTMLElement);
@@ -410,7 +434,19 @@ function processHighlights() {
       const blockParent = highlightElement.closest(".roam-block");
       if (!blockParent) return;
 
-      const blockUID = blockParent.id.split("-").pop();
+      // Extract blockUID from ID
+      const blockId = blockParent.id;
+      let blockUID = "";
+
+      // Look for a date pattern (MM-DD-YYYY) and extract the part after it
+      const dateMatch = blockId.match(/\d{2}-\d{2}-\d{4}-(.+)/);
+      if (dateMatch && dateMatch[1]) {
+        blockUID = dateMatch[1];
+      } else {
+        // Fallback to the original method
+        blockUID = blockId.split("-").pop() || "";
+      }
+
       if (!blockUID) return;
 
       createHighlightButton(blockUID, highlightElement as HTMLElement);
